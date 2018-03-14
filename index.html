@@ -2,80 +2,524 @@
 <!doctype html>
 <html>
 <head>
-  <title>Network | Static smooth curves</title>
+  <title>Team AssetPipeline Battle Plan</title>
 
+  <script type="text/javascript" src="exampleUtils.js"></script>
   <script type="text/javascript" src="vis.js"></script>
   <link href="vis-network.min.css" rel="stylesheet" type="text/css" />
 
   <style type="text/css">
     #mynetwork {
       width: 100%;
-      height: 500px;
+      height: 300px;
       border: 1px solid lightgray;
     }
+
+    #logo {
+    	position: fixed;
+    	float: right;
+    	top: -5px;
+    	right: 0px;
+    }
+
+    h2 {
+    	font: normal 36px "Open Sans",sans-serif;
+    	margin-bottom: 2px;
+
+    }
+    h2 > h3
+    {
+    	margin-top: 2px;    	
+    }
+
+    h3 {
+    	font: normal 16px "Open Sans",sans-serif;
+    }
   </style>
-  
+
+   <style type="text/css">
+    body, select {
+      font: 10pt sans;
+    }
+
+    table.legend_table {
+      font-size: 11px;
+      border-width:1px;
+      border-color:#d3d3d3;
+      border-style:solid;
+    }
+    table.legend_table,td {
+      border-width:1px;
+      border-color:#d3d3d3;
+      border-style:solid;
+      padding: 2px;
+    }
+    div.table_content {
+      width:80px;
+      text-align:center;
+    }
+    div.table_description {
+      width:100px;
+    }
+
+    #operation {
+      font-size:28px;
+    }
+    #network-popUp {
+      display:none;
+      position:absolute;
+      top:350px;
+      left:170px;
+      z-index:299;
+      width:250px;
+      height:120px;
+      background-color: #f9f9f9;
+      border-style:solid;
+      border-width:3px;
+      border-color: #5394ed;
+      padding:10px;
+      text-align: center;
+    }
+
+    #mynetwork > div.vis-network > div.vis-edit-mode {
+    	right: 80px;
+    	left: initial;
+    	opacity: 0.1;
+    }
+
+    #mynetwork > div.vis-network > div.vis-edit-mode:hover {
+    	opacity: 1;
+    }
+
+    #description {
+    	font: normal 12px "Open Sans",sans-serif;	
+    	margin-top: 0px;
+    	height: 10em;
+    }
+
+    #general {
+
+    }
+
+  </style>
+   
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
 </head>
-
+	
 <body>
+<img id="logo" src="https://www.google.com/a/cpanel/unity3d.com/images/logo.gif?service=google_default" />	
 
-<h2>Smooth curves</h2>
-<div style="width:700px; font-size:14px; text-align: justify;">
-    All the smooth curves in the examples so far have been using dynamic smooth curves. This means that each curve has a
-    support node which takes part in the physics simulation. For large networks or dense clusters, this may not be the ideal
-    solution. To solve this, static smooth curves have been added. The static smooth curves are based only on the positions of the connected
-    nodes. There are multiple ways to determine the way this curve is drawn. This example shows the effect of the different
-    types. <br /> <br />
-    Drag the node around to see how the smooth curves are drawn for each setting. For animated system, we
-    recommend only the continuous mode. In the next example you can see the effect of these methods on a large network. Keep in mind
-    that the direction (the from and to) of the curve matters.
-    <br /> <br />
-    When you select the dynamic type, you can see the interaction with the fixed node and the edge, any other type will not interact with other nodes.
-    <br /> <br />
-</div>
+<h2>AssetPipeline</h2>
+<h3>Battle plan</h3>
 
 <div id="mynetwork"></div>
 
+            <input type="button" id="export_button" onclick="exportNetwork()" value="save"></input>
+<div id="description">
+	<h3>Graph node description</h3>
+	<p>Click on a node in the graph to display description</p>
+</div>
+<div id="general">
+	<h3>Metrics</h3>
+	<p>To exercise the full benefits of the new asset pipeline all importers must be "pure". This means that importing an asset should act like a pure function taking the asset, platform and other declared dependencies as input and from that always generate the same output: The imported asset.
+	</p>
+	<p>This is not the case today and below is a listing of our current internal importers and their status in the migration to become pure importers.
+	</p>
+	<div id="importers">
+<iframe src="https://docs.google.com/a/unity3d.com/spreadsheets/d/e/2PACX-1vT_-FCuUcWK9uxNmQ4d5qLqPmveZ7djxBMbsJtbpOF8_G_VytJFY2UAkB1pZt_RmqbNtQc9ijkJfwC3/pubhtml?gid=1173977023&amp;single=true&amp;widget=true&amp;headers=false"></iframe>
+	</div>
+	<div>
+	</div>
+</div>
+
 <script type="text/javascript">
+	var defaultColor = "#fBf1a1";
+	var doneColor = "#aaaaaa";
+	var milestoneColor = "#7BE141";
+    var nodes = null;
+    var edges = null;
+    var network = null;
+    // randomly create some nodes and edges
+    var data = getScaleFreeNetwork(25);
+    var seed = 2;
 
-  // create an array with nodes
-  var nodes = [
-    {id: 1, label: 'Fixed node', x:0, y:0, fixed:true},
-    {id: 2, label: 'Drag me', x:150, y:130, physics:false},
-    {id: 3, label: 'Drag me1', x:160, y:130, physics:false},    
-    {id: 4, label: 'Obstacle', x:80, y:-80, fixed:true, mass:10}
-  ];
 
-  // create an array with edges
-  var edges = [
-    {from: 1, to: 2, arrows:'to', label: 'Fixed node'},
-    {from: 1, to: 3, arrows:'to'}
-  ];
+  hideEditButtonsIfNeeded();
 
-  // create a network
-  var container = document.getElementById('mynetwork');
-  var data = {
-    nodes: nodes,
-    edges: edges
-  };
-  var options = {
-    physics:true,
-    configure:function (option, path) {
-      if (path.indexOf('smooth') !== -1 || option === 'smooth') {
-        return true;
-      }
-      return false;
-    },
-    edges: {
-      smooth: {
-        type: 'continuous'
+
+    function setDefaultLocale() {
+      var defaultLocal = navigator.language;
+      var select = document.getElementById('locale');
+      select.selectedIndex = 0; // set fallback value
+      for (var i = 0, j = select.options.length; i < j; ++i) {
+        if (select.options[i].getAttribute('value') === defaultLocal) {
+          select.selectedIndex = i;
+          break;
+        }
       }
     }
-  };
-  var network = new vis.Network(container, data, options);
+
+    function lookupNodeData(id)
+    {
+		var n = network.body.data.nodes.get(id);
+    	return n;
+    }
+
+    function destroy() {
+      if (network !== null) {
+        network.destroy();
+        network = null;
+      }
+    }
+
+    function draw(data) {
+      destroy();
+  hideEditButtonsIfNeeded();
+
+                //var inputData = JSON.parse(inputValue);
+
+                // var data = {
+                //     nodes: getNodeData(inputData),
+                //     edges: getEdgeData(inputData)
+                // };
+
+      // create a network
+      var container = document.getElementById('mynetwork');
+      var options = {
+        layout: {randomSeed:seed}, // just to make sure the layout is the same when the locale is changed
+        locale: "en", // document.getElementById('locale').value,
+        manipulation: {
+          addNode: function (data, callback) {
+            // filling in the popup DOM elements
+            document.getElementById('operation').innerHTML = "Add Node";
+            document.getElementById('node-id').value = data.id;
+            document.getElementById('node-label').value = data.label;
+            document.getElementById('node-description').value = "";
+            document.getElementById('node-fixed').checked = false;
+            document.getElementById('node-milestone').checked = false;
+            document.getElementById('node-done').checked = false;                                    
+                                    
+            document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+            document.getElementById('cancelButton').onclick = clearPopUp.bind();
+            document.getElementById('network-popUp').style.display = 'block';
+          },
+          editNode: function (data, callback) {
+            // filling in the popup DOM elements
+            document.getElementById('operation').innerHTML = "Edit Node";
+            document.getElementById('node-id').value = data.id;
+            document.getElementById('node-label').value = data.label;
+            var n = lookupNodeData(data.id);
+            document.getElementById('node-description').value = n.description === undefined ? "" : n.description;
+            document.getElementById('node-fixed').checked = data.fixed.x; 
+            document.getElementById('node-milestone').checked = n.milestone === undefined ? false : n.milestone;   
+            document.getElementById('node-done').checked = n.done === undefined ? false : n.done;                                 
+            document.getElementById('saveButton').onclick = saveData.bind(this, data, callback);
+            document.getElementById('cancelButton').onclick = cancelEdit.bind(this,callback);
+            document.getElementById('network-popUp').style.display = 'block';
+          },
+          addEdge: function (data, callback) {
+            data.arrows = 'to';
+            if (data.from == data.to) {
+
+              var r = confirm("Do you want to connect the node to itself?");
+              if (r == true) {
+                callback(data);
+              }
+            }
+            else {
+              callback(data);
+            }
+          }
+        },
+	    physics:true,
+	    nodes : {
+	    	shape: 'dot',
+            borderWidth: 2,
+            shadow:true,
+            margin: 20
+	    },
+	    edges: {
+	      smooth: {
+	        type: 'continuous'
+	      }
+	    }        
+      };
+
+	    data.nodes = Object.keys(data.nodes).map(function(k) { 
+	    	var sn = data.nodes[k];
+	    	sn.color = sn.done ? doneColor : ( sn.milestone ? milestoneColor : defaultColor);
+	    	if (sn.milestone)
+	    	{
+	    		sn.font = { size: 20, multi: "html" };
+	    	}
+
+	    	return sn;
+	    });
+
+      network = new vis.Network(container, data, options);
+      network.on("selectNode", function(obj)
+      {
+      		var n = lookupNodeData(obj.nodes[0]);
+			$('#description').fadeOut("fast", function(){
+
+	      		if (n.description == "")
+	      		{
+		      		$("#description > h3").html("No description");
+		      		$("#description > p").html("Click on a node in the graph to display description");
+	      		}
+	      		else
+	      		{
+			      		$("#description > h3").html(n.label);
+			      		$("#description > p").html(n.description);
+	      		}
+	      		$('#description').fadeIn("fast");
+      		});      			
+      });
+      //var fn = ;
+      setTimeout(function() {
+      		network.view.fit();
+      		var vy = network.getViewPosition().y;
+      		var nx = ((network.view.canvas.getContext().canvas.width/2)-(250 * network.getScale())) * (1/network.getScale());
+      		network.moveTo({animation: { duration: 1000.0, easingFunction: "easeOutCubic"}, position : { x: nx, y: vy }});
+      }, 1);
+
+      hideEditButtonsIfNeeded();
+
+    }
+ 
+    function hideEditButtonsIfNeeded()
+    {
+	    if (document.location.search.indexOf("edit=") == -1)
+	    {
+	    	$("#export_button").hide();
+	    	$(".vis-edit-mode").hide();
+	    }    	
+    }
+
+    function clearPopUp() {
+      document.getElementById('saveButton').onclick = null;
+      document.getElementById('cancelButton').onclick = null;
+      document.getElementById('network-popUp').style.display = 'none';
+    }
+
+    function cancelEdit(callback) {
+      clearPopUp();
+      callback(null);
+    }
+
+    function saveData(data,callback) {
+      data.id = document.getElementById('node-id').value;
+      data.label = document.getElementById('node-label').value;
+      data.fixed = document.getElementById('node-fixed').checked;
+      data.milestone = document.getElementById('node-milestone').checked;
+      data.done = document.getElementById('node-done').checked;
+
+	  data.color = data.done ? doneColor : (data.milestone ? milestoneColor : defaultColor);
+
+      data.physics = false;
+      data.description = document.getElementById('node-description').value;
+      clearPopUp();
+      callback(data);
+      var n = network.body.data.nodes.get(data.id);
+	  if (n)
+	  {
+		  n["description"] = document.getElementById('node-description').value;
+		  network.body.data.nodes.update(n);	  	
+	  }
+    }
+
+    function init() {
+      setDefaultLocale();
+      draw();
+    }
+
+            function exportNetwork() {
+
+                //var nodes = objectToArray(network.getPositions());
+                	var srcNodes = network.body.nodes;
+                var nodes = Object.keys(srcNodes).map(function(k) { 
+                	var sn = srcNodes[k];
+                	var dn = lookupNodeData(k);
+                	return { 
+                		"id": k,
+                		"x": sn.x,
+                		"y" : sn.y,
+                		"label": sn.labelModule.lines[0].blocks[0].text,
+                		"fixed" : sn.options.fixed.x,
+                		"milestone" : dn.milestone === undefined ? false : dn.milestone,
+                		"done" : dn.done === undefined ? false : dn.done,
+
+                		"physics" : sn.options.physics,
+                		"description" : dn.description === undefined ? "" : dn.description
+                	};
+                });
+
+                var srcEdges = network.body.edges;	
+                var edges = Object.keys(srcEdges).map(function(k) { 
+                	var sn = srcEdges[k];
+                	return { "id": k, "from": sn.fromId, "to" : sn.toId, "arrows" : "to" };
+                });	
+
+                // nodes.forEach(addConnections);
+
+                var data = {
+                	nodes : nodes,
+                	edges : edges
+                };
+
+                // pretty print node data
+                var exportValue = JSON.stringify(data, undefined, 2);
+                console.log(exportValue);
+                	$.ajax({
+                		type: 'PUT',
+                		contentType: 'application/json',
+                		url: 'https://jsonblob.com/api/jsonBlob/218377bc-1dff-11e8-a0bc-7da340c40691',
+                		data : exportValue
+                	})
+            }
+
+           function objectToArray(obj) {
+                return Object.keys(obj).map(function (key) {
+                  obj[key].id = key;
+                  return obj[key];
+                });
+            }            
+
+            function addConnections(elem, index) {
+                // need to replace this with a tree of the network, then get child direct children of the element
+                elem.connections = network.getConnectedNodes(index);
+            }
+
+
+            function getNodeData(data) {
+                var networkNodes = [];
+
+                data.forEach(function(elem, index, array) {
+                    networkNodes.push({id: elem.id, label: elem.id, x: elem.x, y: elem.y});
+                });
+
+                return new vis.DataSet(networkNodes);
+            }
+
+            function getNodeById(data, id) {
+                for (var n = 0; n < data.length; n++) {
+                    if (data[n].id == id) {  // double equals since id can be numeric or string
+                      return data[n];
+                    }
+                };
+
+                throw 'Can not find id \'' + id + '\' in data';
+            }
+
+            function getEdgeData(data) {
+                var networkEdges = [];
+
+                data.forEach(function(node) {
+                    // add the connection
+                    node.connections.forEach(function(connId, cIndex, conns) {
+                        networkEdges.push({from: node.id, to: connId});
+                        let cNode = getNodeById(data, connId);
+
+                        var elementConnections = cNode.connections;
+
+                        // remove the connection from the other node to prevent duplicate connections
+                        var duplicateIndex = elementConnections.findIndex(function(connection) {
+                          return connection == node.id; // double equals since id can be numeric or string
+                        });
+
+
+                        if (duplicateIndex != -1) {
+                          elementConnections.splice(duplicateIndex, 1);
+                        };
+                  });
+                });
+
+                return new vis.DataSet(networkEdges);
+            }
+
+            function importNetwork(inputValue) {
+                var data = JSON.parse(inputValue);
+
+                // var data = {
+                //     nodes: getNodeData(inputData),
+                //     edges: getEdgeData(inputData)
+                // }
+
+                network = new vis.Network(container, data, {});
+
+            }
+  </script>
+
+<script type="text/javascript">
+
+	 $.getJSON("https://jsonblob.com/api/jsonBlob/218377bc-1dff-11e8-a0bc-7da340c40691", function(json) {
+	 	
+	 	// var nodes = json["nodes"];
+	 	// var edges = json["edges"];
+	 	draw(json);
+  // // create a network
+  // var container = document.getElementById('mynetwork');
+  // var data = {
+  //   nodes: nodes,
+  //   edges: edges
+  // };
+  // var options = {
+  //   physics:true,
+
+  //   edges: {
+  //     smooth: {
+  //       type: 'continuous'
+  //     }
+  //   }
+  // };
+  // var network = new vis.Network(container, data, options);
+
+
+	 });
+
+  // create an array with nodes
+  // var nodes = [
+  //   {id: 1, label: 'Fixed node', x:0, y:0, fixed:true},
+  //   {id: 2, label: 'Drag me', x:150, y:130, physics:false},
+  //   {id: 3, label: 'Drag me1', x:160, y:130, physics:false},    
+  //   {id: 4, label: 'Obstacle', x:80, y:-80, fixed:true, mass:10}
+  // ];
+
+  // // create an array with edges
+  // var edges = [
+  //   {from: 1, to: 2, arrows:'to', label: 'Fixed node'},
+  //   {from: 1, to: 3, arrows:'to'}
+  // ];
+
+
 
 
 </script>
 
+<div id="network-popUp">
+  <span id="operation">node</span> <br>
+  <table style="margin:auto; backgroud-color: gray"><tr>
+    <td>id</td><td><input id="node-id" value="new value" /></td>
+  </tr>
+    <tr>
+      <td>label</td><td><input id="node-label" value="new value" /></td>
+    </tr>
+    <tr>
+      <td>description</td><td><textarea rows=10, cols=80, id="node-description"></textarea></td>
+    </tr>
+    <tr>
+  		<td>fixed</td><td><input type="checkbox" id="node-fixed" /></td>
+    </tr>
+    <tr>
+  		<td>milestone</td><td><input type="checkbox" id="node-milestone" /></td>
+    </tr>
+    <tr>
+  		<td>done</td><td><input type="checkbox" id="node-done" /></td>
+    </tr>    
+    </table>
+  <input type="button" value="save" id="saveButton" />
+  <input type="button" value="cancel" id="cancelButton" />
+</div>
 </body>
 </html>
